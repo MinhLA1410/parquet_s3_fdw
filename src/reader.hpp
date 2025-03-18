@@ -49,7 +49,7 @@ class ParallelCoordinator
 private:
     enum Type {
         PC_SINGLE = 0,
-        PC_MULTI
+        PC_MULTI,
     };
 
     Type        type;
@@ -137,7 +137,7 @@ enum ReadStatus
 {
     RS_SUCCESS = 0,
     RS_INACTIVE = 1,
-    RS_EOF = 2
+    RS_EOF = 2,
 };
 
 class ParquetReader

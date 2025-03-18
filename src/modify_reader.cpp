@@ -610,15 +610,15 @@ ModifyParquetReader::read_column(std::shared_ptr<arrow::Table> table,
                     list_value->len = list_len;
 
                     /* Loop through the length of the record in one row to get each value */
-                    for (size_t i = 0; i < list_len; i++)
+                    for (size_t k = 0; k < list_len; k++)
                     {
-                        if (arrayValue->IsNull(i))
+                        if (arrayValue->IsNull(k))
                         {
-                            list_value->listIsNULL[i] = true;
+                            list_value->listIsNULL[k] = true;
                         }
                         else
                         {
-                            list_value->listValues[i] = read_primitive_type_raw(arrayValue.get(), &type_info->children[0], i);
+                            list_value->listValues[k] = read_primitive_type_raw(arrayValue.get(), &type_info->children[0], k);
                         }
                     }
                     (*data)[row] = (void *) list_value;
@@ -1187,8 +1187,8 @@ ModifyParquetReader::builder_append_primitive_type(arrow::ArrayBuilder *builder,
                     {
                         bytea *value = *((bytea **)column_values[idx]);
                         char *str = VARDATA(value);
-                        size_t len = VARSIZE(value) - VARHDRSZ;
-                        PARQUET_THROW_NOT_OK(stringBuilder->Append(str, len));
+                        size_t len_value = VARSIZE(value) - VARHDRSZ;
+                        PARQUET_THROW_NOT_OK(stringBuilder->Append(str, len_value));
                     }
                 }
                 if (need_finished == true)

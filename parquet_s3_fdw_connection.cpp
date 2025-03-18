@@ -560,10 +560,9 @@ parquetGetConnectionByTableid(Oid foreigntableid, Oid userid)
  * Get file names in S3 directory. Retuned file names are path from s3path.
  */
 List*
-parquetGetS3ObjectList(Aws::S3::S3Client *s3_cli, const char *s3path)
+parquetGetS3ObjectList(Aws::S3::S3Client *s3_client, const char *s3path)
 {
     List *objectlist = NIL;
-	Aws::S3::S3Client s3_client = *s3_cli;
 	Aws::S3::Model::ListObjectsRequest request;
 
     if (s3path == NULL)
@@ -585,7 +584,7 @@ parquetGetS3ObjectList(Aws::S3::S3Client *s3_cli, const char *s3path)
     }
     request.WithBucket(bucketName.substr(0, len));
 
-	auto outcome = s3_client.ListObjects(request);
+	auto outcome = s3_client->ListObjects(request);
 
 	if (!outcome.IsSuccess())
 		elog(ERROR, "parquet_s3_fdw: failed to get object list on %s. %s", bucketName.substr(0, len).c_str(), outcome.GetError().GetMessage().c_str());
@@ -993,13 +992,16 @@ parquet_s3_fdw_get_connections(PG_FUNCTION_ARGS)
 {
 #define PARQUET_S3_FDW_GET_CONNECTIONS_COLS	2
 	ReturnSetInfo *rsinfo = (ReturnSetInfo *) fcinfo->resultinfo;
+#if (PG_VERSION_NUM < 150000)
 	TupleDesc	tupdesc;
 	Tuplestorestate *tupstore;
 	MemoryContext per_query_ctx;
 	MemoryContext oldcontext;
+#endif	
 	HASH_SEQ_STATUS scan;
 	ConnCacheEntry *entry;
 
+#if (PG_VERSION_NUM < 150000)
 	/* check to see if caller supports us returning a tuplestore */
 	if (rsinfo == NULL || !IsA(rsinfo, ReturnSetInfo))
 		ereport(ERROR,
@@ -1024,15 +1026,13 @@ parquet_s3_fdw_get_connections(PG_FUNCTION_ARGS)
 	rsinfo->setDesc = tupdesc;
 
 	MemoryContextSwitchTo(oldcontext);
+#else
+	InitMaterializedSRF(fcinfo, 0);
+#endif
 
 	/* If cache doesn't exist, we return no records */
 	if (!ConnectionHash)
-	{
-		/* clean up and return the tuplestore */
-		tuplestore_donestoring(tupstore);
-
 		PG_RETURN_VOID();
-	}
 
 	hash_seq_init(&scan, ConnectionHash);
 	while ((entry = (ConnCacheEntry *) hash_seq_search(&scan)))
@@ -1091,11 +1091,8 @@ parquet_s3_fdw_get_connections(PG_FUNCTION_ARGS)
 
 		values[1] = BoolGetDatum(!entry->invalidated);
 
-		tuplestore_putvalues(tupstore, tupdesc, values, nulls);
+		tuplestore_putvalues(rsinfo->setResult, rsinfo->setDesc, values, nulls);
 	}
-
-	/* clean up and return the tuplestore */
-	tuplestore_donestoring(tupstore);
 
 	PG_RETURN_VOID();
 }

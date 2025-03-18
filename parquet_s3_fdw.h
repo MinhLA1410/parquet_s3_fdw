@@ -43,7 +43,7 @@
 #define parquet_fdw_use_threads parquet_s3_fdw_use_threads
 
 #define SingleFileExecutionState SingleFileExecutionStateS3
-#define CODE_VERSION 10101
+#define CODE_VERSION 10200
 
 /* Structure to store option information. */
 typedef struct parquet_s3_server_opt

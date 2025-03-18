@@ -33,7 +33,7 @@ enum ReaderType
     RT_SINGLE,
     RT_MULTI,
     RT_MULTI_MERGE,
-    RT_CACHING_MULTI_MERGE
+    RT_CACHING_MULTI_MERGE,
 };
 
 class ParquetS3FdwExecutionState

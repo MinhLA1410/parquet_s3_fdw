@@ -182,7 +182,7 @@ enum FdwScanPrivateIndex
     /* Path to directory having Parquet files to read */
     FdwScanPrivateDirName,
     /* Foreign Table Id */
-    FdwScanPrivateForeignTableId
+    FdwScanPrivateForeignTableId,
 };
 
 /*
@@ -695,7 +695,7 @@ typedef enum
 {
     PS_START = 0,
     PS_IDENT,
-    PS_QUOTE
+    PS_QUOTE,
 } ParserState;
 
 /*
@@ -1930,6 +1930,29 @@ schemaless_get_sorted_column_type(Aws::S3::S3Client *s3_client, List *file_list,
 }
 
 /*
+ * Is the given relation a base relation?
+ */
+static bool
+is_base_relation(PlannerInfo *root)
+{
+    for(int i = 0; i < root->simple_rel_array_size; i++)
+    {
+        if (root->simple_rel_array[i] == NULL)
+            continue;
+        else
+        {
+            RelOptInfo *rel = root->simple_rel_array[i];
+
+            if(rel->reloptkind != RELOPT_BASEREL)
+            {
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
+/*
  * create_path_key_from_sorted_option
  *      Create PathKey for the attribute from "sorted" option
  */
@@ -1943,6 +1966,7 @@ create_path_key_from_sorted_option(PlannerInfo *root,
 {
     List       *attr_pathkeys = NIL;
     Oid         sort_op;
+    bool        should_create_ec = true;
 
     /* Lookup sorting operator for the attribute type */
     get_sort_group_operators(typid,
@@ -1950,16 +1974,25 @@ create_path_key_from_sorted_option(PlannerInfo *root,
                             &sort_op, NULL, NULL,
                             NULL);
 
+    /*
+     * As the get_eclass_for_sort_expr() in equivclass.c,
+     * only base relation can create new sort key.
+     */
+    should_create_ec = is_base_relation(root);
+
     /* Create PathKey for the attribute from "sorted" option */
 #if PG_VERSION_NUM >= 160000
     attr_pathkeys = build_expression_pathkey(root, expr,
                                              sort_op, relids,
-                                             true);
+                                             should_create_ec);
 # else
     attr_pathkeys = build_expression_pathkey(root, expr, NULL,
                                              sort_op, relids,
-                                             true);
+                                             should_create_ec);
 #endif
+
+    if (should_create_ec == false && attr_pathkeys == NIL)
+        elog(DEBUG1, "parquet_s3_fdw: This query does not support `sorted` option");
 
     if (attr_pathkeys != NIL)
     {
@@ -2149,6 +2182,9 @@ parquetGetForeignPaths(PlannerInfo *root,
                                                     NULL,   /* no pathkeys */
                                                     baserel->lateral_relids,
                                                     NULL,	/* no extra plan */
+#if PG_VERSION_NUM >= 170000
+                                                    NIL, /* no fdw_restrictinfo list */
+#endif
                                                     (List *) fdw_private);
     if (!enable_multifile && is_multi)
         foreign_path->total_cost += disable_cost;
@@ -2175,6 +2211,9 @@ parquetGetForeignPaths(PlannerInfo *root,
                                                 pathkeys,
                                                 baserel->lateral_relids,
                                                 NULL,	/* no extra plan */
+#if PG_VERSION_NUM >= 170000
+                                                NIL, /* no fdw_restrictinfo list */
+#endif
                                                 (List *) private_sort);
 
         /* For multifile case calculate the cost of merging files */
@@ -2195,7 +2234,9 @@ parquetGetForeignPaths(PlannerInfo *root,
     /* Parallel paths */
     if (baserel->consider_parallel > 0)
     {
-        ParquetFdwPlanState *private_parallel;
+        ParquetFdwPlanState    *private_parallel;
+        Path                   *path;
+        int                     num_workers;
         bool use_pathkeys = false;
 
         private_parallel = (ParquetFdwPlanState *) palloc(sizeof(ParquetFdwPlanState));
@@ -2205,7 +2246,7 @@ parquetGetForeignPaths(PlannerInfo *root,
         /* For mutifile reader only use pathkeys when files are in order */
         use_pathkeys = is_sorted && (!is_multi || (is_multi && fdw_private->files_in_order));
 
-        Path *path = (Path *)
+        path = (Path *)
                  create_foreignscan_path(root, baserel,
                                          NULL,	/* default pathtarget */
                                          baserel->rows,
@@ -2214,9 +2255,12 @@ parquetGetForeignPaths(PlannerInfo *root,
                                          use_pathkeys ? pathkeys : NULL,
                                          baserel->lateral_relids,
                                          NULL,	/* no extra plan */
+#if PG_VERSION_NUM >= 170000
+                                         NIL, /* no fdw_restrictinfo list */
+#endif
                                          (List *) private_parallel);
 
-        int num_workers = max_parallel_workers_per_gather;
+        num_workers = max_parallel_workers_per_gather;
 
         path->rows = path->rows / (num_workers + 1);
         path->total_cost       = startup_cost + run_cost / (num_workers + 1);
@@ -2240,7 +2284,7 @@ parquetGetForeignPaths(PlannerInfo *root,
             private_parallel_merge->type = private_parallel_merge->max_open_files > 0 ?
                 RT_CACHING_MULTI_MERGE : RT_MULTI_MERGE;
 
-            Path *path = (Path *)
+            path = (Path *)
                      create_foreignscan_path(root, baserel,
                                              NULL,	/* default pathtarget */
                                              baserel->rows,
@@ -2249,9 +2293,12 @@ parquetGetForeignPaths(PlannerInfo *root,
                                              pathkeys,
                                              baserel->lateral_relids,
                                              NULL,	/* no extra plan */
+#if PG_VERSION_NUM >= 170000
+                                             NIL, /* no fdw_restrictinfo list */
+#endif
                                              (List *) private_parallel_merge);
 
-            int num_workers = max_parallel_workers_per_gather;
+            num_workers = max_parallel_workers_per_gather;
 
             cost_merge(path, list_length(private_parallel_merge->filenames),
                        startup_cost, total_cost, private_parallel_merge->matched_rows);
@@ -3106,17 +3153,17 @@ parquet_fdw_validator_impl(PG_FUNCTION_ARGS)
         {
             char   *filename = pstrdup(defGetString(def));
             List   *filenames;
-            ListCell *lc;
+            ListCell *lc1;
 
             if (filename_provided)
                 elog(ERROR, "parquet_s3_fdw: either filename or dirname can be specified");
 
             filenames = parse_filenames_list(filename);
 
-            foreach(lc, filenames)
+            foreach(lc1, filenames)
             {
                 struct stat stat_buf;
-                char       *fn = strVal(lfirst(lc));
+                char       *fn = strVal(lfirst(lc1));
 
                 if (IS_S3_PATH(fn))
                     continue;
@@ -3734,7 +3781,7 @@ parquetAddForeignUpdateTargets(
             /* loop through all columns of the foreign table */
             for (i = 0; i < tupdesc->natts; ++i)
             {
-                Form_pg_attribute att = TupleDescAttr(tupdesc, 0);
+                Form_pg_attribute att = TupleDescAttr(tupdesc, i);
                 AttrNumber	attrno = att->attnum;
                 Var		   *var;
 #if PG_VERSION_NUM < 140000
@@ -4114,7 +4161,7 @@ parquetBeginForeignModify(ModifyTableState *mtstate,
         else
         {
             List       *options;
-            ListCell   *lc;
+            ListCell   *lc1;
             char       *col_name = attname;
             int         attnum = get_attnum(foreignTableId, attname);
 
@@ -4123,9 +4170,9 @@ parquetBeginForeignModify(ModifyTableState *mtstate,
 
             /* If column_name option is used for the sorted column, get column name from the defined column options */
             options = GetForeignColumnOptions(foreignTableId, attnum);
-            foreach (lc, options)
+            foreach (lc1, options)
             {
-                DefElem *def = (DefElem *)lfirst(lc);
+                DefElem *def = (DefElem *)lfirst(lc1);
 
                 if (strcmp(def->defname, ATTRIBUTE_OPTION_COLUMN_NAME) == 0)
                 {

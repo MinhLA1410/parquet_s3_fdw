@@ -1,24 +1,24 @@
 # Parquet S3 Foreign Data Wrapper for PostgreSQL
 
 This PostgreSQL extension is a Foreign Data Wrapper (FDW) for accessing Parquet file on local file system and [Amazon S3][2].
-This version of parquet_s3_fdw can work for PostgreSQL 13, 14, 15 and 16.0.
+This version of parquet_s3_fdw can work for PostgreSQL 13, 14, 15, 16 and 17.
 
 Apache Parquet foreign data wrapper supporting S3 access for PostgreSQL.
 
 
 ## Installation
 ### 1. Build requirements
-* CMake 3.26.3+
+* CMake 3.29.3
 * C++11 compiler
 * libcurl-devel
 * openssl-devel
 * libuuid-devel
 * pulseaudio-libs-devel
 ### 2. Install dependent libraries
-* `libarrow` and `libparquet`: Confirmed version is 12.0.0 (required).  
+* `libarrow` and `libparquet`: Confirmed version is 16.1.0 (required).
 Please refer to [building guide](https://github.com/apache/arrow/blob/master/docs/source/developers/cpp/building.rst).
 
-* `AWS SDK for C++ (libaws-cpp-sdk-core libaws-cpp-sdk-s3)`: Confirmed version is 1.11.91 (required).  
+* `AWS SDK for C++ (libaws-cpp-sdk-core libaws-cpp-sdk-s3)`: Confirmed version is 1.11.335 (required).
 Please refer to [bulding guide](https://docs.aws.amazon.com/sdk-for-cpp/v1/developer-guide/setup-linux.html)
 
 Attention!  

@@ -51,6 +51,15 @@ table = pa.Table.from_pandas(df, schema)
 with pq.ParquetWriter('ported_postgres/loct1.parquet', table.schema) as writer:
     writer.write_table(table)
 
+# ported_postgres/loct1_1.parquet
+schema = pa.schema([
+    pa.field('c1', pa.int32())])
+
+df = pd.DataFrame({'c1':[]})
+table = pa.Table.from_pandas(df, schema)
+with pq.ParquetWriter('ported_postgres/loct1_1.parquet', table.schema) as writer:
+    writer.write_table(table)
+
 # ported_postgres/loct2.parquet
 schema = pa.schema([
     pa.field('id', pa.int32()),
@@ -61,6 +70,16 @@ schema = pa.schema([
 df = pd.DataFrame({'id':[], 'f1': [], 'f2': [], 'f3': []})
 table = pa.Table.from_pandas(df, schema)
 with pq.ParquetWriter('ported_postgres/loct2.parquet', table.schema) as writer:
+    writer.write_table(table)
+
+# ported_postgres/loct2_1.parquet
+schema = pa.schema([
+    pa.field('c1', pa.int32()),
+    pa.field('c2', pa.string())])
+
+df = pd.DataFrame({'c1':[], 'c2': []})
+table = pa.Table.from_pandas(df, schema)
+with pq.ParquetWriter('ported_postgres/loct2_1.parquet', table.schema) as writer:
     writer.write_table(table)
 
 # ported_postgres/loct4.parquet

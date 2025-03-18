@@ -51,7 +51,7 @@ typedef enum FileLocation_t
 {
     LOC_NOT_DEFINED,
     LOC_LOCAL,
-    LOC_S3
+    LOC_S3,
 } FileLocation;
 
 
@@ -87,7 +87,7 @@ extern char *create_foreign_table_query(const char *tablename, const char *schem
 extern Aws::S3::S3Client *parquetGetConnection(UserMapping *user, bool use_minio);
 extern Aws::S3::S3Client *parquetGetConnectionByTableid(Oid foreigntableid, Oid userid);
 extern void parquetReleaseConnection(Aws::S3::S3Client *conn);
-extern List* parquetGetS3ObjectList(Aws::S3::S3Client *s3_cli, const char *s3path);
+extern List* parquetGetS3ObjectList(Aws::S3::S3Client *s3_client, const char *s3path);
 extern List* parquetGetDirFileList(List *filelist, const char *path);
 extern FileLocation parquetFilenamesValidator(const char *filename, FileLocation loc);
 extern void parquetSplitS3Path(const char *dirname, const char *filename, char **bucket, char **filepath);
