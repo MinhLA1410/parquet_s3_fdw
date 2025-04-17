@@ -9,4 +9,5 @@ cd ./workdir/postgresql-${VERSION}/contrib/parquet_s3_fdw
 # show locally compiled library
 ls -la /usr/local/lib
 
-sudo make install
+# sudo make install
+make

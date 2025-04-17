@@ -35,5 +35,5 @@ else
 fi
 
 make
-sudo make install
-sudo chown -R $USER /usr/local/pgsql
+# sudo make install
+# sudo chown -R $USER /usr/local/pgsql
