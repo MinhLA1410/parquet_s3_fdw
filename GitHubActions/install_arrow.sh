@@ -13,6 +13,7 @@ git clone "$adr" $INSTALL_DIR
 cd $INSTALL_DIR
 git checkout -b apache-arrow-$VERSION refs/tags/apache-arrow-$VERSION
 git submodule update --init --recursive
+mkdir -p cpp/release
 cd cpp/release
 cmake .. $CONFIGURE_OPTIONS .
 
