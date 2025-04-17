@@ -50,8 +50,8 @@ jobs:
       - name: install ARROW
         run: bash GitHubActions/install_arrow.sh ${{ env.ARROW }}
 
-      # - name: install locales
-      #   run: bash GitHubActions/install_locales.sh
+      - name: install locales
+        run: bash GitHubActions/install_locales.sh
 
       - name: build PostgreSQL ${{ matrix.pg }}
         run: bash GitHubActions/build_postgres.sh ${{ matrix.pg }}
