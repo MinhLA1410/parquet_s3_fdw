@@ -15,10 +15,10 @@ if [ "$(docker ps -aq -f name=^/${schemaless_container_name}$)" ]; then
 fi
 
 # clean-up old data
-rm -rf /tmp/data_local || true
-rm -rf /tmp/data_s3 || true
-rm -rf /tmp/data_local_schemaless || true
-rm -rf /tmp/data_s3_schemaless || true
+sudo rm -rf /tmp/data_local || true
+sudo rm -rf /tmp/data_s3 || true
+sudo rm -rf /tmp/data_local_schemaless || true
+sudo rm -rf /tmp/data_s3_schemaless || true
 
 mkdir -p /tmp/data_local || true
 mkdir -p /tmp/data_s3 || true

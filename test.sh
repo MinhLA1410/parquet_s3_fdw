@@ -8,3 +8,5 @@ sed -i 's/REGRESS =.*/REGRESS = import_local import_server parquet_s3_fdw_local 
 make clean
 make $1
 make check $1 | tee make_check.out
+
+docker rm $(docker stop $(docker ps -a -q))
